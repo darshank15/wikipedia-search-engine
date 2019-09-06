@@ -170,7 +170,7 @@ def search(path_to_index, queries):
                     break
          
         final_result.append(tilte_result)
-        print(len(tilte_result))
+        # print(len(tilte_result))
 
     return final_result
 

@@ -193,7 +193,7 @@ word_position = dict() # store word & its occurence/file pointer in title file, 
 fptr=0
 file = index_path + "/t_1.txt"
 outfile = open(file, "w+")
-for word in sorted(title_index) :
+for word in title_index:
     index = ",".join(title_index[word])
     index = index+"\n"
     outfile.write(index)
@@ -206,7 +206,7 @@ outfile.close();
 fptr=0
 file = index_path + "/b_1.txt"
 outfile = open(file, "w+")
-for word in sorted(text_index) :
+for word in text_index :
     index = ",".join(text_index[word])
     index = index+"\n"
     if word not in word_position:
@@ -219,7 +219,7 @@ outfile.close()
 fptr=0
 file = index_path + "/c_1.txt"
 outfile = open(file, "w+")
-for word in sorted(category_index) :
+for word in category_index :
     index = ",".join(category_index[word])
     index = index+"\n"
     if word not in word_position:
@@ -232,7 +232,7 @@ outfile.close()
 fptr=0
 file = index_path + "/i_1.txt"
 outfile = open(file, "w+")
-for word in sorted(infobox_index) :
+for word in infobox_index:
     index = ",".join(infobox_index[word])
     index = index+"\n"
     if word not in word_position:
@@ -251,7 +251,7 @@ pickle.dump(word_position, file)
 file.close()
 
 end = time.time()
-print("Time taken - " + str(end - start) + " s")
+# print("Time taken - " + str(end - start) + " s")
 
 
 # In[ ]:
