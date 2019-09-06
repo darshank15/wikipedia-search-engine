@@ -1,0 +1,194 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[46]:
+
+
+from include1 import *
+import operator
+import time
+import copy
+import sys
+
+
+# In[47]:
+
+
+def read_file(testfile):
+    with open(testfile, 'r') as file:
+        queries = file.readlines()
+    return queries
+
+
+# In[48]:
+
+
+def write_file(outputs, path_to_output):
+    '''outputs should be a list of lists.
+        len(outputs) = number of queries
+        Each element in outputs should be a list of titles corresponding to a particular query.'''
+    with open(path_to_output, 'w') as file:
+        for output in outputs:
+            for line in output:
+                file.write(line.strip() + '\n')
+            file.write('\n')
+
+
+# In[49]:
+
+
+def mapping_shortform(field) :
+    
+    field = field.lower()
+    
+    if field == "title" :
+        return "t"
+    elif field == "infobox" :
+        return "i"
+    elif field == "category" :
+        return "c"
+    elif field == "body" :
+        return "b"
+    elif field == "ref" :
+        return "b"
+    else :
+        return field
+
+
+# In[50]:
+
+
+def search(path_to_index, queries):
+    
+    title_tags = open(path_to_index+"/title_tags.txt", "r")
+    title_position = pickle.load(open(path_to_index+"/title_positions.pickle", "rb"))
+    word_position = pickle.load(open(path_to_index+"/word_positions.pickle", "rb"))
+
+    field_map = {"t" : 0, "b" : 1, "i" : 2, "c" : 3}
+    field_chars = ["t", "b", "i", "c"] 
+    files = []
+
+    for f in field_chars :
+        file = path_to_index+ "/" + f + ".txt"
+        fp = open(file, "r")
+        files.append(fp)
+        
+    final_result = []
+    for query in queries :
+        
+        # print(query)
+
+        result = []
+        documents = dict()
+        query_words = list()
+
+        # query = query.lower().strip()
+#         start = time.time()
+#         if (query == "exit") :
+#             break
+
+        if ":" in query :
+            query_bag = query.split(" ")
+            t_result=list()
+            for q in query_bag :
+                field, query = q.split(":")
+                field = mapping_shortform(field)
+                query_words = query.split()
+                for word in query_words :
+                    word = stemmer.stem(word)
+                    if word in word_position and field in word_position[word] :
+                        position = word_position[word][field]
+                        files[field_map[field]].seek(position)
+                        intersection=list()
+                        s = files[field_map[field]].readline()[:-1] # remove "/n" [:-1] & read full line of posting list
+                        if "," in s :
+                            items = s.split(",")
+                            for item in items :
+                                document, score = item.split(":")
+                                if document not in documents :
+                                    documents[document] = float(score)
+                                else :
+                                    documents[document] += float(score)
+                        else :
+                            document, score = s.split(":")
+                            if document not in documents :
+                                documents[document] = float(score)
+                            else :
+                                documents[document] += float(score)
+                        
+
+        else :    
+            query_bag = query.split()      
+            length = len(query_bag)
+            for i in range(length) :
+                query_bag[i] = stemmer.stem(query_bag[i])
+                
+            for word in query_bag :
+                if word not in stop_words and word in word_position:
+                    query_words.append(word)
+
+            for word in query_words :
+                docs = list()
+                positions = word_position[word]
+                for field in positions.keys() :
+                    position = positions[field]
+                    intersection=list()
+                    files[field_map[field]].seek(position)
+                    s = files[field_map[field]].readline()[: -1]
+                    if "," in s :
+                        items = s.split(",")
+                        for item in items :
+                            document, score = item.split(":")
+                            if document not in documents :
+                                documents[document] = float(score)
+                            else :
+                                documents[document] += float(score)
+                    else :
+                        document, score = s.split(":")
+                        if document not in documents :
+                            documents[document] = float(score)
+                        else:
+                            documents[document] += float(score)
+        
+        documents = sorted(documents.items(), key = operator.itemgetter(1), reverse = True)
+        count = 1
+        for document in documents :
+            
+            position = title_position[int(document[0]) - 1]
+            title_tags.seek(position)
+            title = title_tags.readline()[: -1]
+            result.append(title)
+            count += 1
+            if count > 10 :
+                    break
+                    
+        final_result.append(result)
+        # print(len(tilte_result))
+
+    return final_result
+
+
+# In[51]:
+
+
+def main():
+    
+#     path_to_index = sys.argv[1]
+#     testfile = sys.argv[2]
+#     path_to_output = sys.argv[3]
+
+    path_to_index = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/files"
+    testfile = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/input/queryfile"
+    path_to_output = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/output/result"
+
+    queries = read_file(testfile)
+    outputs = search(path_to_index, queries)
+    write_file(outputs, path_to_output)
+
+
+# In[52]:
+
+
+if __name__ == '__main__':
+    main()
+
