@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
+# In[78]:
 
 
 from include1 import *
@@ -11,7 +11,7 @@ import copy
 import sys
 
 
-# In[17]:
+# In[79]:
 
 
 def read_file(testfile):
@@ -20,7 +20,7 @@ def read_file(testfile):
     return queries
 
 
-# In[18]:
+# In[80]:
 
 
 def write_file(outputs, path_to_output):
@@ -34,7 +34,7 @@ def write_file(outputs, path_to_output):
             file.write('\n')
 
 
-# In[19]:
+# In[81]:
 
 
 def mapping_shortform(field) :
@@ -55,7 +55,7 @@ def mapping_shortform(field) :
         return field
 
 
-# In[20]:
+# In[82]:
 
 
 def search(path_to_index, queries):
@@ -69,7 +69,7 @@ def search(path_to_index, queries):
     files = []
 
     for f in field_chars :
-        file = path_to_index+"/" + f + "_1.txt"
+        file = path_to_index+ "/" + f + ".txt"
         fp = open(file, "r")
         files.append(fp)
         
@@ -90,105 +90,122 @@ def search(path_to_index, queries):
         if ":" in query :
             query_bag = query.split(" ")
             t_result=list()
-            intersection=0
+            flag2=0
             for q in query_bag :
-                
-                # print("q :",q)
-                field, query = q.split(":")
-                # field = field.strip()
+                field_query = q.split(":")
+                field = field_query[0]
+                query = field_query[1]
                 field = mapping_shortform(field)
-    #             print(field)
-    #             print(query)
                 query_words = query.split()
                 for word in query_words :
-                    docs=list()
                     word = stemmer.stem(word)
                     if word in word_position and field in word_position[word] :
                         position = word_position[word][field]
                         files[field_map[field]].seek(position)
-                        s = files[field_map[field]].readline()[:-1]
-                        temp_docs = s.split(",")
-                        for doc in temp_docs : 
-                            docs.append(doc.split(":")[0])
-                        if intersection==0:
-                            intersection = 1
-                            t_result=copy.deepcopy(list(set(docs)))
-                        else:
-                            t_result=copy.deepcopy(list(set(t_result) & set(docs)));
+                        intersection=list()
+                        s = files[field_map[field]].readline()[:-1] # remove "/n" [:-1] & read full line of posting list
+                        if "," in s :
+                            items = s.split(",")
+                            for item in items :
+                                document_score = item.split(":")
+                                doc_id = document_score[0]
+                                score = document_score[1]
+                                tt = 1
+                                if doc_id in documents :
+                                    documents[doc_id] = documents[doc_id] + float(score)
+                                else :
+                                    documents[doc_id] = float(score)
+                        else :
+                            document_score = item.split(":")
+                            doc_id = document_score[0]
+                            score = document_score[1]
+                            tt = 1
+                            union_list = list()
+                            if doc_id in documents :
+                                documents[doc_id] = documents[doc_id] + float(score)
+                            else :
+                                documents[doc_id] = float(score)
+                        
 
-            for item in t_result : 
-                result.append(item)
-
-            result = set(result)
-            
-            # print(len(result))
-
-        else :
-            intersection=0    
+        else :    
             query_bag = query.split()      
             length = len(query_bag)
             for i in range(length) :
                 query_bag[i] = stemmer.stem(query_bag[i])
+                
             for word in query_bag :
                 if word not in stop_words and word in word_position:
                     query_words.append(word)
 
             for word in query_words :
                 docs = list()
+                flag2=0
                 positions = word_position[word]
                 for field in positions.keys() :
                     position = positions[field]
+                    intersection=list()
                     files[field_map[field]].seek(position)
                     s = files[field_map[field]].readline()[: -1]
-                    temp_docs = s.split(",")
-                    for doc in temp_docs : 
-                        docs.append(doc.split(":")[0])
-                if intersection==0:
-                    intersection = 1
-                    result=copy.deepcopy(list(set(docs)))
-                else:
-                    result=copy.deepcopy(list(set(result) & set(docs)))
-
-        end = time.time()
-        if len(result) == 0 :
-            tilte_result = []
-#             print("No reults found")
-#             print("Time taken - " + str(end - start) + "s")
-        else :
-#             print("Results retrieved in - " + str(end - start) + "s")
-            result= set(result)
-            tilte_result = []
-#             print("No-",len(result))
-            count=1
-            for d_id in result:
-                pointer=title_position[int(d_id)-1]
-                title_tags.seek(pointer)
-                title=title_tags.readline()[:-1]
-                tilte_result.append(title)
-                count = count + 1
-                if count > 10 :
+                    if "," in s :
+                        items = s.split(",")
+                        for item in items :
+                            document_score = item.split(":")
+                            doc_id = document_score[0]
+                            score = document_score[1]
+                            tt = 1
+                            if doc_id in documents :
+                                documents[doc_id] =  documents[doc_id] + float(score)
+                            else :
+                                documents[doc_id] = float(score)
+                                
+                    else :
+                        document_score = item.split(":")
+                        doc_id = document_score[0]
+                        score = document_score[1]
+                        tt = 1
+                        union_list = list()
+                        if doc_id in documents :
+                            documents[doc_id] =  documents[doc_id] + float(score)
+                        else:
+                            documents[doc_id] = float(score)
+        
+        documents = sorted(documents.items(), key = operator.itemgetter(1), reverse = True)
+        count = 1
+        for document in documents :
+            
+            position = title_position[int(document[0]) - 1]
+            title_tags.seek(position)
+            title = title_tags.readline()[: -1]
+            result.append(title)
+            count += 1
+            if count > 10 :
                     break
-         
-        final_result.append(tilte_result)
+                    
+        final_result.append(result)
         # print(len(tilte_result))
 
     return final_result
 
 
-# In[21]:
+# In[83]:
 
 
 def main():
-    path_to_index = sys.argv[1]
-    testfile = sys.argv[2]
-    path_to_output = sys.argv[3]
+    
+#     path_to_index = sys.argv[1]
+#     testfile = sys.argv[2]
+#     path_to_output = sys.argv[3]
+
+    path_to_index = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/files"
+    testfile = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/input/queryfile"
+    path_to_output = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/output/result"
 
     queries = read_file(testfile)
     outputs = search(path_to_index, queries)
     write_file(outputs, path_to_output)
 
 
-# In[22]:
+# In[84]:
 
 
 if __name__ == '__main__':
