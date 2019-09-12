@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[37]:
+# In[11]:
 
 
 import operator
 from math import *
 from heapq import *
-from include1 import *
 from collections import *
 import os
 import time
@@ -19,7 +18,7 @@ import base64
 import nltk        
 
 
-# In[38]:
+# In[12]:
 
 
 stemmer = nltk.stem.SnowballStemmer('english')
@@ -34,17 +33,17 @@ for word in content :
         stop_words[word] = True
 
 
-# In[39]:
+# In[13]:
 
 
-# wiki_path  = sys.argv[1]
-# index_path = sys.argv[2]
+wiki_path  = sys.argv[1]
+index_path = sys.argv[2]
 
-wiki_path  = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/dump_wikipedia.xml"
-index_path = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/files"
+# wiki_path  = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/dump_wikipedia.xml"
+# index_path = "/home/darshan/Documents/M.Tech_SEM-3/IRE/projects/mini-projects/wikipedia-search-engine/phase-2/files"
 
 
-# In[40]:
+# In[14]:
 
 
 start = time.time()
@@ -67,6 +66,12 @@ regExp1 = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9
 # RE to remove tags & css
 regExp2 = re.compile(r'{\|(.*?)\|}',re.DOTALL)
 
+# Regular Expression to remove {{cite **}} or {{vcite **}}
+regExp3 = re.compile(r'{{v?cite(.*?)}}',re.DOTALL)
+
+# Regular Expression to remove [[file:]]
+regExp4 = re.compile(r'\[\[file:(.*?)\]\]',re.DOTALL)
+
 # pattern to get only alphnumeric text
 pattern = re.compile("[^a-zA-Z0-9]")
 
@@ -75,31 +80,36 @@ categoty_re = "\[\[Category:(.*?)\]\]"
 infobox_re="{{Infobox((.|\n)*?)}}"
 
 file_count = 0
-pages_per_file = 2000
+pages_per_file = 40000
 page_count = 0 # denote which number of wiki page it is
 
 # if not os.path.exists():
 #     os.makedirs(my_path+"/files")
 
 
-# In[41]:
+# In[15]:
 
 
 xmlFile = wiki_path
 context = et.iterparse(xmlFile, events=("start", "end"))
 context = iter(context)
 title_tags = open(index_path+"/title_tags.txt", "w+")
+stem_word_dict = dict()
 
 
-# In[42]:
+# In[16]:
 
 
 def preprocee_word(word) :
-
+    global stem_word_dict
     word = word.strip()
     word = word.lower() # convert into lower case
-    word = stemmer.stem(word) # do stemming
-    return word
+    if word not in stem_word_dict :
+        stem_word = stemmer.stem(word) # do stemming
+        stem_word_dict[word]=stem_word
+    else :
+        stem_word = stem_word_dict[word]
+    return stem_word
 
 for event, elem in context :
     tag =  re.sub(r"{.*}", "", elem.tag)
@@ -118,7 +128,8 @@ for event, elem in context :
             text = str(elem.text)
             text = regExp1.sub('',text)
             text = regExp2.sub('',text)
-            
+            text = regExp3.sub('',text)
+            text = regExp4.sub('',text)
             try :
                 
                 tempword = re.findall(categoty_re, text); # get all data between [[Category : ----- ]]
@@ -160,7 +171,12 @@ for event, elem in context :
 
                 for word in text :
                     if word :
-                        word = stemmer.stem(word)
+                        if word not in stem_word_dict :
+                            stem_word = stemmer.stem(word) # do stemming
+                            stem_word_dict[word]=stem_word
+                        else :
+                            stem_word = stem_word_dict[word]
+                        word = stem_word
                         if word not in stop_words :
                             if len(word) <= 2 :
                                     continue
@@ -183,7 +199,12 @@ for event, elem in context :
 
                 for word in text :
                     if word :
-                        word = stemmer.stem(word)
+                        if word not in stem_word_dict :
+                            stem_word = stemmer.stem(word) # do stemming
+                            stem_word_dict[word]=stem_word
+                        else :
+                            stem_word = stem_word_dict[word]
+                        word = stem_word
                         if word not in stop_words :
                             if len(word) <= 2 :
                                 continue
@@ -201,20 +222,27 @@ for event, elem in context :
             doc_id = str(page_count) # get document ID ==> Wiki page number
             
             for word in text_tag_words :
-                s = doc_id + ":" + str(text_tag_words[word]); # doc_id  : frequency
+                s = doc_id + ":" 
+                s = s + str(text_tag_words[word]); # doc_id  : frequency
                 text_index[word].append(s)
 
             for word in infobox_words :
-                s = doc_id + ":" + str(infobox_words[word])
+                s = doc_id + ":" 
+                s = s + str(infobox_words[word])
                 infobox_index[word].append(s)
             
             for word in title_tag_words :
-                s = doc_id + ":" + str(title_tag_words[word])
+                s = doc_id + ":" 
+                s = s + str(title_tag_words[word])
                 title_index[word].append(s)
 
             for word in category_words :
-                s = doc_id + ":" + str(category_words[word])
+                s = doc_id + ":"
+                s = s + str(category_words[word])
                 category_index[word].append(s)
+               
+            if page_count % 50000 == 0 :
+                stem_word_dict = {}
                 
             if page_count % pages_per_file == 0 :
                 
@@ -261,7 +289,7 @@ for event, elem in context :
         elem.clear()
 
 
-# In[43]:
+# In[17]:
 
 
 file = index_path + "/t" + str(file_count) + ".txt"
@@ -308,7 +336,7 @@ file_count = file_count + 1
 """
 
 
-# In[44]:
+# In[18]:
 
 
 t_file = index_path+"/title_positions.pickle"
@@ -317,14 +345,14 @@ pickle.dump(title_position, file)
 file.close()
 
 
-# In[45]:
+# In[19]:
 
 
 word_position = dict() # store word & its occurence/file pointer in title file, infobox file, body file
 # abc word : { { t : fpt1_val}, { b : fpt2_val}, { c : fpt3_val}, { b : fpt4_val} }
 
 
-# In[46]:
+# In[20]:
 
 
 field_chars = ["t", "b", "i", "c"]
@@ -411,12 +439,12 @@ for f in field_chars :
             documents = sorted(documents.items(), key = operator.itemgetter(1), reverse = True)
             
             top_posting_list_result = ""
-            number_of_results = 1
+#             number_of_results = 1
             for document in documents :
                 top_posting_list_result = top_posting_list_result + document[0] + ":" + str(document[1]) + ","
-                number_of_results = number_of_results + 1
-                if number_of_results > 10 :
-                    break
+#                 number_of_results = number_of_results + 1
+#                 if number_of_results > 10 :
+#                     break
 
             top_posting_list_result = top_posting_list_result[ : -1 ] # to remove last extra comma ","
             output_files[outfile_index].write( top_posting_list_result+"\n" )
@@ -435,18 +463,23 @@ for f in field_chars :
         pass
 
 
-# In[47]:
+# In[21]:
+
+
+end = time.time()
+
+print("Time taken - " + str(end - start) + " s")
+
+
+# In[22]:
 
 
 file = open(index_path+"/word_positions.pickle", "wb+")
 pickle.dump(word_position, file)
 file.close()
 
-end = time.time()
-# print("Time taken - " + str(end - start) + " s")
 
-
-# In[48]:
+# In[23]:
 
 
 # print(word_position)
